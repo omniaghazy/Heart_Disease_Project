@@ -1,0 +1,91 @@
+
+# app.py
+
+import streamlit as st
+import pandas as pd
+import joblib
+import plotly.express as px
+
+# Load the model pipeline
+try:
+    pipeline = joblib.load('final_pipeline.pkl')
+except FileNotFoundError:
+    st.error("Model pipeline file not found. Please make sure 'final_pipeline.pkl' exists.")
+    st.stop()
+
+st.title("Heart Disease Prediction App")
+st.write("Enter the patient's health data to predict the presence of heart disease.")
+
+# Create input fields for user data
+st.subheader("Patient Data:")
+age = st.slider("Age", 29, 77, 50)
+trestbps = st.slider("Resting Blood Pressure", 94, 200, 120)
+chol = st.slider("Cholesterol", 126, 564, 250)
+thalach = st.slider("Maximum Heart Rate", 71, 202, 150)
+oldpeak = st.number_input("ST Depression (Oldpeak)", 0.0, 6.2, 1.0, step=0.1)
+
+sex_map = {"Male": 1, "Female": 0}
+sex_1 = st.selectbox("Sex", ["Male", "Female"])
+sex_1 = sex_map[sex_1]
+
+cp_map = {"Typical Angina": 1, "Atypical Angina": 2, "Non-Anginal Pain": 3, "Asymptomatic": 4}
+cp_4 = st.selectbox("Chest Pain Type", ["Typical Angina", "Atypical Angina", "Non-Anginal Pain", "Asymptomatic"])
+cp_4 = 1 if cp_4 == "Asymptomatic" else 0
+
+exang_map = {"Yes": 1, "No": 0}
+exang_1 = st.selectbox("Exercise Induced Angina", ["Yes", "No"])
+exang_1 = exang_map[exang_1]
+
+slope_map = {"Upsloping": 1, "Flat": 2, "Downsloping": 3}
+slope_2 = st.selectbox("ST Slope", ["Upsloping", "Flat", "Downsloping"])
+slope_2 = 1 if slope_2 == "Flat" else 0
+
+thal_map = {"Normal": 3, "Fixed Defect": 6, "Reversible Defect": 7}
+thal_7 = st.selectbox("Thalium Stress Test", ["Normal", "Fixed Defect", "Reversible Defect"])
+thal_7 = 1 if thal_7 == "Reversible Defect" else 0
+
+# Prediction button
+if st.button("Predict"):
+    # Create a DataFrame from user inputs
+    user_data = pd.DataFrame([[age, trestbps, chol, thalach, oldpeak, sex_1, cp_4, exang_1, slope_2, thal_7]], 
+                             columns=['age', 'trestbps', 'chol', 'thalach', 'oldpeak', 'sex_1', 'cp_4', 
+                                      'exang_1', 'slope_2', 'thal_7.0'])
+    
+    # Make prediction using the pipeline
+    prediction = pipeline.predict(user_data)
+    
+    # Display the result
+    if prediction[0] == 1:
+        st.error("⚠️ Prediction: **Heart Disease**")
+    else:
+        st.success("✅ Prediction: **No Heart Disease**")
+
+# Visualization and Data Exploration
+st.subheader("Explore Heart Disease Trends")
+st.write("Compare your data with the dataset used for training the model.")
+
+# Load the original cleaned data for visualization
+try:
+    df_viz = pd.read_csv('cleaned_data.csv')
+    df_viz['Sex'] = df_viz['sex_1'].map({1: 'Male', 0: 'Female'})
+    df_viz['Condition'] = df_viz['num'].map({1: 'Heart Disease', 0: 'No Heart Disease'})
+except FileNotFoundError:
+    st.warning("Original data file not found. Skipping visualization.")
+    st.stop()
+
+# Plot 1: Age vs. Cholesterol by Condition
+fig1 = px.scatter(df_viz, x='age', y='chol', color='Condition',
+                  title='Age vs. Cholesterol',
+                  labels={'age': 'Age', 'chol': 'Cholesterol'})
+fig1.add_scatter(x=[age], y=[chol], mode='markers', name='Your Data',
+                 marker=dict(color='red', size=12, symbol='star'))
+st.plotly_chart(fig1, use_container_width=True)
+
+# Plot 2: Heart Rate vs. Oldpeak by Sex
+fig2 = px.scatter(df_viz, x='thalach', y='oldpeak', color='Condition',
+                  symbol='Sex',
+                  title='Max Heart Rate vs. ST Depression',
+                  labels={'thalach': 'Max Heart Rate', 'oldpeak': 'ST Depression'})
+fig2.add_scatter(x=[thalach], y=[oldpeak], mode='markers', name='Your Data',
+                 marker=dict(color='red', size=12, symbol='star'))
+st.plotly_chart(fig2, use_container_width=True)
