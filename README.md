@@ -56,4 +56,4 @@ ngrok http 8501
 
 Note: For Ngrok deployment, you may need to install it and set up your authentication token.
 
-Author: coreX Team
+Author: Omnia Mohamed Ghazy 
